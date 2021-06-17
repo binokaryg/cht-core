@@ -19,8 +19,10 @@ describe('reminders', () => {
   afterEach(() => {
     sinon.restore();
     clock.restore();
+
     db.couchUrl = 'someURL';
   });
+
   beforeEach(() => {
     clock = sinon.useFakeTimers();
     reminders = rewire('../../../src/schedule/reminders');
@@ -74,7 +76,9 @@ describe('reminders', () => {
   });
 
   describe('isConfigValid', () => {
+
     let isConfigValid;
+
     beforeEach(() => {
       isConfigValid = reminders.__get__('isConfigValid');
     });
