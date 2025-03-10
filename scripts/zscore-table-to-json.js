@@ -1,5 +1,5 @@
 /**
- * Converts tabular zscore data as provided by the WHO into the
+ * Converts space-delimited tabular zscore data as provided by the WHO into the
  * JSON format required by the zscore enketo widget.
  *
  * http://www.who.int/childgrowth/standards/en/
