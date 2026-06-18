@@ -1338,6 +1338,77 @@ describe('messageUtils', () => {
 
     });
 
+    describe('extension libs', () => {
+
+      const toDevanagari = str => String(str).replace(/[0-9]/g, d => '०१२३४५६७८९'[d]);
+
+      it('exposes an extension-lib function as a section helper named by its id', () => {
+        const input = '{{#to_devanagari}}{{patient_id}}{{/to_devanagari}}';
+        const doc = { patient_id: '12345' };
+        const actual = utils.template({}, null, doc, { message: input }, {}, { to_devanagari: toDevanagari });
+        expect(actual).to.equal('१२३४५');
+      });
+
+      it('registers the helper under the lib id with its file extension stripped', () => {
+        const input = '{{#to_devanagari}}{{patient_id}}{{/to_devanagari}}';
+        const doc = { patient_id: '12345' };
+        // the lib id is the attachment name, which includes the `.js` extension
+        const actual = utils.template({}, null, doc, { message: input }, {}, { 'to_devanagari.js': toDevanagari });
+        expect(actual).to.equal('१२३४५');
+      });
+
+      it('renders inner tags before passing them to the extension lib', () => {
+        const age = dob => String(2026 - parseInt(dob.slice(0, 4), 10));
+        const input = '{{patient_name}} is {{#age}}{{date_of_birth}}{{/age}} years old';
+        const doc = { patient_name: 'Ana', date_of_birth: '1990-01-01' };
+        const actual = utils.template({}, null, doc, { message: input }, {}, { age });
+        expect(actual).to.equal('Ana is 36 years old');
+      });
+
+      it('supports a lib alongside built-in helpers', () => {
+        const date = '2016-03-06T03:45:41.000Z';
+        const input = 'id {{#to_devanagari}}{{patient_id}}{{/to_devanagari}} on {{#date}}{{reported_date}}{{/date}}';
+        const doc = { patient_id: '12', reported_date: date };
+        const config = { date_format: 'DD-MMM-YYYY' };
+        const actual = utils.template(config, null, doc, { message: input }, {}, { to_devanagari: toDevanagari });
+        expect(actual).to.equal(`id १२ on ${moment(date).format(config.date_format)}`);
+      });
+
+      it('ignores a lib that tries to override a built-in helper', () => {
+        const date = '2016-03-06T03:45:41.000Z';
+        const input = '{{#date}}{{reported_date}}{{/date}}';
+        const doc = { reported_date: date };
+        const config = { date_format: 'DD-MMM-YYYY' };
+        const evilLib = () => 'HACKED';
+        const actual = utils.template(config, null, doc, { message: input }, {}, { date: evilLib });
+        expect(actual).to.equal(moment(date).format(config.date_format));
+      });
+
+      it('ignores a non-function export', () => {
+        const input = 'hello {{#not_a_fn}}{{name}}{{/not_a_fn}}';
+        const doc = { name: 'world' };
+        const actual = utils.template({}, null, doc, { message: input }, {}, { not_a_fn: { some: 'object' } });
+        // section over a falsy/non-list value renders nothing
+        expect(actual).to.equal('hello ');
+      });
+
+      it('behaves unchanged when no extension libs are provided', () => {
+        const input = 'hello {{name}}';
+        const doc = { name: 'george' };
+        expect(utils.template({}, null, doc, { message: input })).to.equal('hello george');
+        expect(utils.template({}, null, doc, { message: input }, {}, undefined)).to.equal('hello george');
+      });
+
+      it('generate() applies extension-lib helpers to the message', () => {
+        const config = { multipart_sms_limit: 10 };
+        const doc = { patient_id: '789', from: '+456' };
+        const content = { message: 'ID: {{#to_devanagari}}{{patient_id}}{{/to_devanagari}}' };
+        const messages = utils.generate(config, null, doc, content, '+123', {}, { to_devanagari: toDevanagari });
+        expect(messages[0].message).to.equal('ID: ७८९');
+      });
+
+    });
+
     describe('template context', () => {
 
       it('supports template variables on doc', () => {

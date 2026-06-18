@@ -12,6 +12,7 @@ import { FormatDateService } from '@mm-services/format-date.service';
 import { LanguageService } from '@mm-services/language.service';
 import { DbService } from '@mm-services/db.service';
 import { TranslateLocaleService } from '@mm-services/translate-locale.service';
+import { CHTDatasourceService } from '@mm-services/cht-datasource.service';
 import { DOC_TYPES } from '@medic/constants';
 
 describe('FormatDataRecord service', () => {
@@ -19,6 +20,7 @@ describe('FormatDataRecord service', () => {
   let Language;
   let db;
   let translateLocaleService;
+  let chtDatasourceService;
 
   let service;
 
@@ -27,6 +29,10 @@ describe('FormatDataRecord service', () => {
     Language = sinon.stub();
     db = { query: sinon.stub() };
     translateLocaleService = { instant: sinon.stub().returnsArg(0) };
+    chtDatasourceService = {
+      isInitialized: sinon.stub().resolves(),
+      getExtensionLibs: sinon.stub().returns({}),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -35,6 +41,7 @@ describe('FormatDataRecord service', () => {
         { provide: FormatDateService, useValue: { relative: sinon.stub().returns('sometime') } },
         { provide: DbService, useValue: { get: () => db } },
         { provide: TranslateLocaleService, useValue: translateLocaleService },
+        { provide: CHTDatasourceService, useValue: chtDatasourceService },
       ]
     });
     service = TestBed.inject(FormatDataRecordService);

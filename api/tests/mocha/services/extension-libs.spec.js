@@ -11,8 +11,17 @@ describe('Extension Libs service', () => {
 
   beforeEach(() => {
     dbGet = sinon.stub(db.medic, 'get');
+    service.clearCache();
   });
-  afterEach(() => sinon.restore());
+  afterEach(() => {
+    service.clearCache();
+    sinon.restore();
+  });
+
+  const asAttachment = code => ({
+    data: Buffer.from(code, 'utf8').toString('base64'),
+    content_type: 'application/javascript',
+  });
 
   describe('isLibChange', () => {
 
@@ -139,6 +148,41 @@ describe('Extension Libs service', () => {
       chai.expect(dbGet.callCount).to.equal(1);
       chai.expect(dbGet.args[0][0]).to.equal(DOC_IDS.EXTENSION_LIBS);
       chai.expect(dbGet.args[0][1]).to.deep.equal({ attachments: true });
+    });
+
+  });
+
+  describe('getAllEvaluated', () => {
+
+    it('decodes and compiles each lib into a { name: export } map', async () => {
+      dbGet.resolves({ _id: DOC_IDS.EXTENSION_LIBS, _attachments: {
+        to_upper: asAttachment('module.exports = str => String(str).toUpperCase();'),
+        suffix: asAttachment('module.exports = str => str + "!";'),
+      } });
+      const libs = await service.getAllEvaluated();
+      chai.expect(Object.keys(libs)).to.have.members(['to_upper', 'suffix']);
+      chai.expect(libs.to_upper('abc')).to.equal('ABC');
+      chai.expect(libs.suffix('hi')).to.equal('hi!');
+    });
+
+    it('caches the result until the cache is cleared', async () => {
+      dbGet.resolves({ _id: DOC_IDS.EXTENSION_LIBS, _attachments: {
+        noop: asAttachment('module.exports = str => str;'),
+      } });
+
+      await service.getAllEvaluated();
+      await service.getAllEvaluated();
+      chai.expect(dbGet.callCount).to.equal(1);
+
+      service.clearCache();
+      await service.getAllEvaluated();
+      chai.expect(dbGet.callCount).to.equal(2);
+    });
+
+    it('returns an empty map when there are no libs', async () => {
+      dbGet.rejects({ status: 404 });
+      const libs = await service.getAllEvaluated();
+      chai.expect(libs).to.deep.equal({});
     });
 
   });

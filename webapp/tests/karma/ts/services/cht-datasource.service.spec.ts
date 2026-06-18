@@ -124,6 +124,23 @@ describe('CHTScriptApiService service', () => {
       const baz = result.v1.getExtensionLib('baz.js');
       expect(baz).to.be.undefined;
     });
+
+    it('should expose all loaded extension libs as a map', async () => {
+      settingsService.get.resolves();
+      http.get.onCall(0).returns(of([ 'bar.js', 'foo.js' ]));
+      http.get.onCall(1).returns(of('module.exports = (a) => a + a'));
+      http.get.onCall(2).returns(of('module.exports = function() { return "foo"; }'));
+      await service.isInitialized();
+
+      const libs = service.getExtensionLibs();
+      expect(Object.keys(libs)).to.have.members([ 'bar.js', 'foo.js' ]);
+      expect(libs['bar.js']('hi')).to.equal('hihi');
+      expect(libs['foo.js']()).to.equal('foo');
+
+      const result = await service.get();
+      const apiLibs = result.v1.getExtensionLibs();
+      expect(Object.keys(apiLibs)).to.have.members([ 'bar.js', 'foo.js' ]);
+    });
   });
 
   describe('bind()', () => {

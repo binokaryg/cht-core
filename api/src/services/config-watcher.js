@@ -77,6 +77,15 @@ const loadSettings = () => {
     .then(settings => config.set(settings));
 };
 
+const loadExtensionLibs = () => {
+  return extensionLibs
+    .getAllEvaluated()
+    .then(libs => config.setExtensionLibs(libs))
+    .catch(err => {
+      logger.error('Error loading extension libs - starting up anyway: %o', err);
+    });
+};
+
 
 const handleDdocChange = () => {
   logger.info('Detected ddoc change - reloading');
@@ -128,7 +137,9 @@ const handleBrandingChanges = () => {
 };
 
 const handleLibsChanges = () => {
-  return updateServiceWorker();
+  extensionLibs.clearCache();
+  return loadExtensionLibs()
+    .then(() => updateServiceWorker());
 };
 
 const updateManifest = () => {
@@ -148,6 +159,7 @@ const load = () => {
   loadViewMaps();
   return loadTranslations()
     .then(() => loadSettings())
+    .then(() => loadExtensionLibs())
     .then(() => addUserRolesToDb())
     .then(() => initTransitionLib())
     .then(() => db.createVault())

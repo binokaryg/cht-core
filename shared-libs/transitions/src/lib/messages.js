@@ -63,7 +63,8 @@ module.exports = {
         doc,
         content,
         recipient,
-        context
+        context,
+        config.getExtensionLibs?.()
       );
       const task = { messages: generated };
 
@@ -166,7 +167,8 @@ module.exports = {
         utils.translate,
         doc,
         error,
-        context
+        context,
+        config.getExtensionLibs?.()
       );
       utils.addError(doc, error);
     } catch (e) {

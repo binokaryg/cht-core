@@ -146,6 +146,9 @@ export class CHTDatasourceService {
         getExtensionLib: (id) => {
           return this.extensionLibs[id];
         },
+        getExtensionLibs: () => {
+          return { ...this.extensionLibs };
+        },
         analytics: {
           getTargetDocs: () => ([]),
         },
@@ -156,5 +159,13 @@ export class CHTDatasourceService {
   async getDataContext() {
     await this.isInitialized();
     return this.dataContext;
+  }
+
+  /**
+   * Returns the map of loaded extension-libs (`{ libId: export }`), for use as custom message
+   * helpers. Synchronous - callers should `await isInitialized()` first to ensure libs are loaded.
+   */
+  getExtensionLibs() {
+    return { ...this.extensionLibs };
   }
 }

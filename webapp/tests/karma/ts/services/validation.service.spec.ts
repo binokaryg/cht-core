@@ -24,7 +24,11 @@ describe('Validation Service', () => {
     settingsService = { get: sinon.stub() };
     translateLocaleService = { instant: sinon.stub() };
     languageService = { get: sinon.stub() };
-    chtDatasourceService = { getDataContext: sinon.stub() };
+    chtDatasourceService = {
+      getDataContext: sinon.stub(),
+      isInitialized: sinon.stub().resolves(),
+      getExtensionLibs: sinon.stub().returns({}),
+    };
     sinon.stub(validation, 'init');
     sinon.stub(validation, 'validate');
 

@@ -333,8 +333,43 @@ const formatDate = function(config, text, view, formatString, locale) {
   return moment(date).locale(locale).format(formatString);
 };
 
-const render = function(config, template, view, locale) {
-  return mustache.render(template, Object.assign(view, {
+const BUILT_IN_HELPERS = ['bikram_sambat_date', 'date', 'datetime', 'local_phone'];
+
+// Extension-lib ids are attachment names that include a file extension (e.g. `to_devanagari.js`).
+// Mustache treats a `.` as a path separator, so the helper is registered under the id with its file
+// extension stripped (`to_devanagari`) - i.e. `{{#to_devanagari}}{{patient_id}}{{/to_devanagari}}`.
+const helperName = name => name.replace(/\.[^.]+$/, '');
+
+// Turn each configured extension-lib whose export is a function into a Mustache section lambda. The
+// inner text is rendered first (so nested tags/helpers resolve) before being passed to the lib,
+// mirroring `local_phone`.
+const buildExtensionHelpers = function(config, view, locale, extensionLibs) {
+  const helpers = {};
+  if (!extensionLibs) {
+    return helpers;
+  }
+  Object.keys(extensionLibs).forEach(name => {
+    const lib = extensionLibs[name];
+    if (typeof lib !== 'function') {
+      return;
+    }
+    const helper = helperName(name);
+    if (BUILT_IN_HELPERS.includes(helper)) {
+      logger.warn(`Extension lib "${name}" cannot override a built-in message helper and will be ignored.`);
+      return;
+    }
+    helpers[helper] = function() {
+      return function(text) {
+        return lib(render(config, text, view, locale, extensionLibs));
+      };
+    };
+  });
+  return helpers;
+};
+
+const render = function(config, template, view, locale, extensionLibs) {
+  const extensionHelpers = buildExtensionHelpers(config, view, locale, extensionLibs);
+  return mustache.render(template, Object.assign(view, extensionHelpers, {
     bikram_sambat_date: function() {
       return function(text) {
         return toBikramSambatLetters(formatDate(config, text, view, 'YYYY-MM-DD'));
@@ -381,9 +416,11 @@ const truncateMessage = function(parts, max) {
  *        provide as a context for templating. Properties: `patient` (object),
  *        `registrations` (array), `place` (object), `placeRegistrations` (array),
  *        and `templateContext` (object) for any unstructured context additions.
+ * @param {Object} [extensionLibs={}] A map of `{ libId: fn }` extension-lib functions to expose as
+ *        custom Mustache section helpers (named by lib id) when rendering the message template.
  * @returns {Object} The generated message object.
  */
-exports.generate = function(config, translate, doc, content, recipient, extraContext) {
+exports.generate = function(config, translate, doc, content, recipient, extraContext, extensionLibs) {
   'use strict';
 
   const context = extendedTemplateContext(doc, extraContext || {});
@@ -393,7 +430,7 @@ exports.generate = function(config, translate, doc, content, recipient, extraCon
     to: getPhone(config, context, recipient)
   };
 
-  const message = exports.template(config, translate, doc, content, extraContext);
+  const message = exports.template(config, translate, doc, content, extraContext, extensionLibs);
   if (!message || (content.translationKey && message === content.translationKey)) {
     result.error = 'messages.errors.message.empty';
     return [ result ];
@@ -441,9 +478,11 @@ exports.generate = function(config, translate, doc, content, recipient, extraCon
  *        provide as a context for templating. Properties: `patient` (object),
  *        `registrations` (array), and `templateContext` (object) for any
  *        unstructured context additions.
+ * @param {Object} [extensionLibs={}] A map of `{ libId: fn }` extension-lib functions to expose as
+ *        custom Mustache section helpers (named by lib id) when rendering the message template.
  * @returns {String} The message.
  */
-exports.template = function(config, translate, doc, content, extraContext) {
+exports.template = function(config, translate, doc, content, extraContext, extensionLibs) {
   extraContext = extraContext || {};
   const locale = getLocale(config, doc);
   const template = exports.getMessage(content, translate, locale);
@@ -453,7 +492,7 @@ exports.template = function(config, translate, doc, content, extraContext) {
   }
 
   const context = extendedTemplateContext(doc, extraContext);
-  return render(config, template, context, locale);
+  return render(config, template, context, locale, extensionLibs);
 };
 
 const getMessageLegacy = (configuration, locale = DEFAULT_LOCALE) => {
@@ -499,6 +538,29 @@ exports.getMessage = function(configuration, translate, locale) {
  */
 exports.hasError = function(messages) {
   return messages && messages[0] && messages[0].error;
+};
+
+/**
+ * Compile raw extension-lib source into a `{ libId: export }` map so the exported functions
+ * can be passed to `generate`/`template` as custom message helpers. Each lib is evaluated as a
+ * CommonJS module (`module.exports = ...`), mirroring how the webapp loads extension-libs. This
+ * is the single evaluator shared by the API and Sentinel; it takes already-decoded source (no
+ * base64/CouchDB knowledge) so it remains usable wherever message-utils runs.
+ * @param {Array} libs - Array of `{ name, code }` where `code` is the decoded JS source.
+ * @returns {Object} A map of `{ libId: moduleExport }`. Libs that fail to evaluate are skipped.
+ */
+exports.compileExtensionLibs = function(libs) {
+  const compiled = {};
+  (libs || []).forEach(({ name, code }) => {
+    try {
+      const lib = { exports: null };
+      new Function('module', code)(lib);
+      compiled[name] = lib.exports;
+    } catch (e) {
+      logger.error(`Error compiling extension lib "${name}": %o`, e);
+    }
+  });
+  return compiled;
 };
 
 exports.getLocale = getLocale;

@@ -185,7 +185,27 @@ angular.module('services').factory('MessageQueue',
         });
     };
 
-    const generateScheduledMessages = function(messages, settings) {
+    const getExtensionLibs = function() {
+      return DB({ remote: true })
+        .get(constants.DOC_IDS.EXTENSION_LIBS, { attachments: true })
+        .then(function(doc) {
+          const attachments = (doc && doc._attachments) || {};
+          const decoded = Object.keys(attachments).map(function(name) {
+            return { name: name, code: atob(attachments[name].data) };
+          });
+          return MessageQueueUtils.messages.compileExtensionLibs(decoded);
+        })
+        .catch(function(err) {
+          if (err.status === 404) {
+            // no doc means no configured libs
+            return {};
+          }
+          $log.error('Error loading extension libs', err);
+          return {};
+        });
+    };
+
+    const generateScheduledMessages = function(messages, settings, extensionLibs) {
       const translate = function(key, locale) {
         return $translate.instant(key, null, 'no-interpolation', locale, null);
       };
@@ -206,7 +226,8 @@ angular.module('services').factory('MessageQueue',
           message.doc,
           content,
           message.scheduled_sms.recipient,
-          message.context
+          message.context,
+          extensionLibs
         )[0];
       });
 
@@ -315,9 +336,10 @@ angular.module('services').factory('MessageQueue',
           .all([
             Settings(),
             DB({ remote: true }).query('medic-admin/message_queue', params.list),
-            DB({ remote: true }).query('medic-admin/message_queue', params.count)
+            DB({ remote: true }).query('medic-admin/message_queue', params.count),
+            getExtensionLibs()
           ])
-          .then(([settings, messagesList, messagesCount]) => {
+          .then(([settings, messagesList, messagesCount, extensionLibs]) => {
             const messages = messagesList.rows.map((row) => {
               const extras = {
                 doc: row.doc,
@@ -332,7 +354,7 @@ angular.module('services').factory('MessageQueue',
 
             return getSubjectsAndRegistrations(messages, settings)
               .then(hydrateContacts)
-              .then((messages) => generateScheduledMessages(messages, settings))
+              .then((messages) => generateScheduledMessages(messages, settings, extensionLibs))
               .then(getRecipients)
               .then((messages) => {
                 return {

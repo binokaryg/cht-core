@@ -9,6 +9,7 @@ describe('MessageQueue service', function() {
   let Languages;
   let utils;
   let query;
+  let dbGet;
   let translate;
   let clock;
 
@@ -16,6 +17,7 @@ describe('MessageQueue service', function() {
     Settings = sinon.stub();
     Languages = sinon.stub();
     query = sinon.stub();
+    dbGet = sinon.stub().rejects({ status: 404 }); // no extension-libs doc by default
     translate = sinon.stub();
     translate.instant = sinon.stub();
     translate.storageKey = sinon.stub();
@@ -43,7 +45,7 @@ describe('MessageQueue service', function() {
       $provide.value('Settings', Settings);
       $provide.value('Languages', Languages);
       $provide.value('MessageQueueUtils', utils);
-      $provide.factory('DB', KarmaUtils.mockDB({ query: query }));
+      $provide.factory('DB', KarmaUtils.mockDB({ query: query, get: dbGet }));
     });
 
     inject(($injector) => {
@@ -773,7 +775,7 @@ describe('MessageQueue service', function() {
         chai.expect(utils.registrations.isValidRegistration.callCount).to.equal(13);
         chai.expect(utils.messages.generate.callCount).to.equal(6);
 
-        chai.expect(utils.messages.generate.args[0].slice(2)).to.deep.equal([
+        chai.expect(utils.messages.generate.args[0].slice(2, -1)).to.deep.equal([
           {
             _id: 'report_id1',
             reported_date: 100,
@@ -801,7 +803,7 @@ describe('MessageQueue service', function() {
           }
         ]);
 
-        chai.expect(utils.messages.generate.args[1].slice(2)).to.deep.equal([
+        chai.expect(utils.messages.generate.args[1].slice(2, -1)).to.deep.equal([
           {
             _id: 'report_id2',
             reported_date: 200,
@@ -825,7 +827,7 @@ describe('MessageQueue service', function() {
           }
         ]);
 
-        chai.expect(utils.messages.generate.args[2].slice(2)).to.deep.equal([
+        chai.expect(utils.messages.generate.args[2].slice(2, -1)).to.deep.equal([
           {
             _id: 'report_id3',
             reported_date: 200,
@@ -849,7 +851,7 @@ describe('MessageQueue service', function() {
           }
         ]);
 
-        chai.expect(utils.messages.generate.args[3].slice(2)).to.deep.equal([
+        chai.expect(utils.messages.generate.args[3].slice(2, -1)).to.deep.equal([
           {
             _id: 'report_id4',
             reported_date: 200,
@@ -875,7 +877,7 @@ describe('MessageQueue service', function() {
           }
         ]);
 
-        chai.expect(utils.messages.generate.args[4].slice(2)).to.deep.equal([
+        chai.expect(utils.messages.generate.args[4].slice(2, -1)).to.deep.equal([
           {
             _id: 'report_id5',
             reported_date: 200,
@@ -904,7 +906,7 @@ describe('MessageQueue service', function() {
           }
         ]);
 
-        chai.expect(utils.messages.generate.args[5].slice(2)).to.deep.equal([
+        chai.expect(utils.messages.generate.args[5].slice(2, -1)).to.deep.equal([
           {
             _id: 'report_id6',
             reported_date: 200,

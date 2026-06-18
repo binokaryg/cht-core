@@ -170,7 +170,8 @@ module.exports = {
                 patient: patient,
                 placeRegistrations: placeRegistrations,
                 place: place,
-              }
+              },
+              config.getExtensionLibs?.()
             );
           }
           const state = messages.isOutgoingAllowed(doc.from) ? allowedState : 'denied';

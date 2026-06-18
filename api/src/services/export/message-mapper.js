@@ -181,7 +181,8 @@ module.exports = {
               record,
               content,
               task.recipient,
-              context
+              context,
+              config.getExtensionLibs()
             );
           }
 

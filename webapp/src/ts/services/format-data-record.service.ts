@@ -6,6 +6,7 @@ import { FormatDateService } from '@mm-services/format-date.service';
 import { LanguageService } from '@mm-services/language.service';
 import { SettingsService } from '@mm-services/settings.service';
 import { TranslateLocaleService } from '@mm-services/translate-locale.service';
+import { CHTDatasourceService } from '@mm-services/cht-datasource.service';
 
 import * as messages from '@medic/message-utils';
 import * as registrationUtils from '@medic/registration-utils';
@@ -20,6 +21,7 @@ export class FormatDataRecordService {
     private languageService:LanguageService,
     private settingsService:SettingsService,
     private translateLocaleService:TranslateLocaleService,
+    private chtDatasourceService:CHTDatasourceService,
     private ngZone:NgZone,
   ) {
   }
@@ -552,7 +554,8 @@ export class FormatDataRecordService {
           doc,
           content,
           task.recipient,
-          context
+          context,
+          this.chtDatasourceService.getExtensionLibs()
         );
 
         if (messages.hasError(copy.messages)) {
@@ -702,6 +705,7 @@ export class FormatDataRecordService {
         this.languageService.get(),
         doc.scheduled_tasks && this.getRegistrations(patientId),
         doc.scheduled_tasks && this.getRegistrations(placeId),
+        this.chtDatasourceService.isInitialized(), // ensure extension-libs are loaded for message helpers
       ])
       .then(([ settings, language, patientRegistrations=[], placeRegistrations=[] ]) => {
         const context:any = {};

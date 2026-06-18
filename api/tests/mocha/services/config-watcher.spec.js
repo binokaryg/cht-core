@@ -28,7 +28,10 @@ describe('Configuration', () => {
     sinon.stub(generateServiceWorker, 'run');
     sinon.stub(manifest, 'generate');
     sinon.stub(extensionLibsService, 'isLibChange').returns(false);
+    sinon.stub(extensionLibsService, 'getAllEvaluated').resolves({});
+    sinon.stub(extensionLibsService, 'clearCache');
     sinon.spy(config, 'set');
+    sinon.spy(config, 'setExtensionLibs');
     sinon.spy(config, 'setTranslationCache');
     sinon.spy(config, 'setTransitionsLib');
     sinon.stub(fs, 'watch');
@@ -69,6 +72,10 @@ describe('Configuration', () => {
 
         chai.expect(config.setTranslationCache.callCount).to.equal(1);
         chai.expect(config.setTranslationCache.args[0]).to.deep.equal([{}]);
+
+        chai.expect(extensionLibsService.getAllEvaluated.callCount).to.equal(1);
+        chai.expect(config.setExtensionLibs.callCount).to.equal(1);
+        chai.expect(config.setExtensionLibs.args[0]).to.deep.equal([{}]);
 
         chai.expect(deployInfo.store.calledOnce).to.equal(true);
         chai.expect(db.createVault.callCount).to.equal(1);
@@ -314,11 +321,15 @@ describe('Configuration', () => {
 
     describe('extension libs changes', () => {
 
-      it('generates service worker when extension libs doc is updated', () => {
+      it('clears the cache, reloads libs and generates service worker when extension libs doc is updated', () => {
         extensionLibsService.isLibChange.returns(true);
+        extensionLibsService.getAllEvaluated.resolves({ my_lib: () => 'x' });
         generateServiceWorker.run.resolves();
         return dbWatcher.medic.args[0][0]({ id: 'my-secret-id' }).then(() => {
-          extensionLibsService.isLibChange.returns(true);
+          chai.expect(extensionLibsService.clearCache.callCount).to.equal(1);
+          chai.expect(extensionLibsService.getAllEvaluated.callCount).to.equal(1);
+          chai.expect(config.setExtensionLibs.callCount).to.equal(1);
+          chai.expect(Object.keys(config.setExtensionLibs.args[0][0])).to.deep.equal(['my_lib']);
           chai.expect(generateServiceWorker.run.callCount).to.equal(1);
         });
       });

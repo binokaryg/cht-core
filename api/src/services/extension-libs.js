@@ -1,7 +1,10 @@
 const db = require('../db');
+const messageUtils = require('@medic/message-utils');
 
 const { DOC_IDS } = require('@medic/constants');
 const DOC_ID = DOC_IDS.EXTENSION_LIBS;
+
+let evaluatedCache;
 
 const getLibsDoc = () => {
   return db.medic.get(DOC_ID, { attachments: true })
@@ -37,5 +40,18 @@ module.exports = {
     if (attachment) {
       return formatResult(name, attachment);
     }
+  },
+  // Returns the extension-libs compiled into a `{ libId: export }` map for use as custom message
+  // helpers. Cached until `clearCache()` is called (on a change to the extension-libs doc).
+  getAllEvaluated: async () => {
+    if (!evaluatedCache) {
+      const libs = await module.exports.getAll();
+      const decoded = libs.map(({ name, data }) => ({ name, code: Buffer.from(data, 'base64').toString('utf8') }));
+      evaluatedCache = messageUtils.compileExtensionLibs(decoded);
+    }
+    return evaluatedCache;
+  },
+  clearCache: () => {
+    evaluatedCache = undefined;
   }
 };

@@ -554,6 +554,7 @@ describe('schedules', () => {
           place: undefined,
           placeRegistrations: undefined,
         },
+        undefined,
       ]);
 
       assert.equal(doc.scheduled_tasks.length, 1);
@@ -598,6 +599,7 @@ describe('schedules', () => {
           place: place,
           placeRegistrations: placeRegistrations,
         },
+        undefined,
       ]);
 
       assert.equal(doc.scheduled_tasks.length, 1);
@@ -644,6 +646,7 @@ describe('schedules', () => {
           place: place,
           placeRegistrations: placeRegistrations,
         },
+        undefined,
       ]);
 
       assert.equal(doc.scheduled_tasks.length, 1);
@@ -687,10 +690,44 @@ describe('schedules', () => {
           place: undefined,
           placeRegistrations: undefined,
         },
+        undefined,
       ]);
 
       assert.equal(doc.scheduled_tasks.length, 1);
       assert.equal(doc.scheduled_tasks[0].messages[0].message, 'hello kitty');
+    });
+
+    it('forwards configured extension-libs and applies them as message helpers', () => {
+      const toDevanagari = str => String(str).replace(/[0-9]/g, d => '०१२३४५६७८९'[d]);
+      const extensionLibs = { to_devanagari: toDevanagari };
+      config.init({
+        getAll: sinon.stub().returns({}),
+        get: sinon.stub().returns(),
+        getExtensionLibs: sinon.stub().returns(extensionLibs),
+      });
+      schedules = require('../../src/lib/schedules');
+
+      const schedule = {
+        name: 'for patient',
+        start_from: 'reported_date',
+        messages: [{
+          recipient: 'reporting_unit',
+          group: 1,
+          offset: '1 day',
+          message: [{
+            content: 'id {{#to_devanagari}}{{patient_id}}{{/to_devanagari}}',
+            locale: 'en',
+          }]
+        }]
+      };
+      const doc = { form: 'x', reported_date: moment().valueOf(), patient_id: '12345' };
+
+      sinon.spy(messageUtils, 'generate');
+      schedules.assignSchedule(doc, schedule);
+
+      assert.equal(messageUtils.generate.callCount, 1);
+      assert.deepEqual(messageUtils.generate.args[0][6], extensionLibs);
+      assert.equal(doc.scheduled_tasks[0].messages[0].message, 'id १२३४५');
     });
   });
 

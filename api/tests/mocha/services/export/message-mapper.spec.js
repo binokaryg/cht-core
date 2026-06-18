@@ -436,7 +436,8 @@ describe('Message mapper', () => {
             {
               patient: record.patient,
               registrations: record.registrations
-            }
+            },
+            {}
           ]);
 
           chai.expect(result.length).to.equal(2);

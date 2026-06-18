@@ -30,6 +30,7 @@ export class ValidationService {
     }
 
     this.settings = await this.settingsService.get();
+    await this.chtDatasourceService.isInitialized(); // ensure extension-libs are loaded for message helpers
 
     validation.init({
       settings: this.settings,
@@ -63,7 +64,8 @@ export class ValidationService {
         this.translate.bind(this),
         doc,
         error,
-        context
+        context,
+        this.chtDatasourceService.getExtensionLibs()
       );
       return error;
     });
