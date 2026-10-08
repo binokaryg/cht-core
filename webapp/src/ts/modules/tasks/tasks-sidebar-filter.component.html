@@ -34,7 +34,29 @@
           </mat-panel-description>
         </mat-expansion-panel>
 
-        <!-- 2. Task Type -->
+        <!-- 2. Ending soon -->
+        <mat-expansion-panel id="ending-soon-filter-accordion">
+          <mat-expansion-panel-header>
+            <ng-container
+              [ngTemplateOutlet]="headerTemplate"
+              [ngTemplateOutletContext]="{
+                numSelected: filterCount.endingSoonFilter,
+                label: 'tasks.sidebar.filter.ending_soon',
+                filters: [ 'endingSoonFilter' ]
+              }">
+            </ng-container>
+          </mat-expansion-panel-header>
+          <mat-panel-description>
+            <mm-ending-soon-filter
+              class="filter"
+              fieldId="endingSoonFilter"
+              (search)="applyFilters()"
+              [disabled]="disabled">
+            </mm-ending-soon-filter>
+          </mat-panel-description>
+        </mat-expansion-panel>
+
+        <!-- 3. Task Type -->
         <mat-expansion-panel id="task-type-filter-accordion">
           <mat-expansion-panel-header>
             <ng-container
@@ -56,7 +78,7 @@
           </mat-panel-description>
         </mat-expansion-panel>
 
-        <!-- 3. Place - hidden when only one facility -->
+        <!-- 4. Place - hidden when only one facility -->
         <mat-expansion-panel id="place-filter-accordion" *ngIf="showPlaceFilter">
           <mat-expansion-panel-header>
             <ng-container

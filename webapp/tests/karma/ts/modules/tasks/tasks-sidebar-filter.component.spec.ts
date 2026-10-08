@@ -189,6 +189,57 @@ describe('TasksSidebarFilterComponent', () => {
     expect(clearCalls).to.have.lengthOf(0);
   });
 
+  it('should include the ending soon filter in the sidebar filters', () => {
+    expect(component.endingSoonFilter).to.exist;
+    // Compare by identity: chai's `include` would try to pretty-print the component graph on failure.
+    const isRegistered = (component as any).filters.some(filter => filter === component.endingSoonFilter);
+    expect(isRegistered).to.be.true;
+    expect(fixture.nativeElement.querySelector('#ending-soon-filter-accordion')).to.exist;
+  });
+
+  it('should count an ending soon selection towards the selected-filter badge', () => {
+    const setSidebarFilterStub = sinon.stub(GlobalActions.prototype, 'setSidebarFilter');
+    sinon.stub(GlobalActions.prototype, 'setFilter');
+
+    component.endingSoonFilter.toggle(5);
+
+    expect(component.filterCount.total).to.equal(1);
+    expect(component.filterCount.endingSoonFilter).to.equal(1);
+    expect(setSidebarFilterStub.lastCall.args[0].filterCount).to.include({ total: 1, endingSoonFilter: 1 });
+    expect(telemetryService.record.args).to.deep.include(['tasks:filter:apply:endingSoonFilter', 1]);
+  });
+
+  it('should clear the ending soon filter on reset', () => {
+    sinon.stub(GlobalActions.prototype, 'setSidebarFilter');
+    const setFilterStub = sinon.stub(GlobalActions.prototype, 'setFilter');
+    const clearFiltersStub = sinon.stub(GlobalActions.prototype, 'clearFilters');
+    component.endingSoonFilter.toggle(7);
+    expect(component.endingSoonFilter.countSelected()).to.equal(1);
+
+    component.resetFilters();
+
+    expect(clearFiltersStub.calledOnceWithExactly('search')).to.be.true;
+    expect(component.endingSoonFilter.countSelected()).to.equal(0);
+    expect(setFilterStub.args).to.deep.include([{ taskEndingSoonDays: undefined }]);
+    expect(component.filterCount.total).to.equal(0);
+    expect(component.filterCount.endingSoonFilter).to.equal(0);
+  });
+
+  it('should clear only the ending soon filter when its chip is removed', () => {
+    sinon.stub(GlobalActions.prototype, 'setSidebarFilter');
+    sinon.stub(GlobalActions.prototype, 'setFilter');
+    component.endingSoonFilter.toggle(5);
+    component.overdueFilter.toggle('overdue');
+    expect(component.filterCount.total).to.equal(2);
+
+    component.clearFilters(['endingSoonFilter']);
+
+    expect(component.endingSoonFilter.countSelected()).to.equal(0);
+    expect(component.overdueFilter.countSelected()).to.equal(1);
+    expect(component.filterCount.total).to.equal(1);
+    expect(telemetryService.record.args).to.deep.include(['tasks:filter:clear:endingSoonFilter']);
+  });
+
   it('should clear sidebar filter and filters on destroy', () => {
     const clearSidebarFilterStub = sinon.stub(GlobalActions.prototype, 'clearSidebarFilter');
     const clearFiltersStub = sinon.stub(GlobalActions.prototype, 'clearFilters');

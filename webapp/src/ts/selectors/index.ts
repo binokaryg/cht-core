@@ -2,6 +2,7 @@ import { createSelector } from '@ngrx/store';
 import { GlobalState, TasksFilters } from '@mm-reducers/global';
 import { TaskEmission } from '@mm-services/rules-engine.service';
 import Fuse from 'fuse.js';
+import * as moment from 'moment';
 
 interface TaskWithLineage extends TaskEmission {
   lineageIds: string[];
@@ -70,11 +71,33 @@ const filterTasksBySearch = (tasks: TaskWithLineage[], normalizedSearch: string)
   return [...substringMatched, ...fuzzyMatched];
 };
 
+// Whole calendar days, in the device's local timezone, from today until the task's last visible
+// day (`endDate`, stored as YYYY-MM-DD by the rules engine). Evaluated every time the list is
+// filtered so it never goes stale between rules-engine runs. Undefined when there is no valid endDate.
+const getDaysUntilTaskEnd = (task: TaskWithLineage): number | undefined => {
+  if (!task?.endDate) {
+    return undefined;
+  }
+  const endDate = moment(task.endDate, 'YYYY-MM-DD', true);
+  if (!endDate.isValid()) {
+    return undefined;
+  }
+  return endDate.startOf('day').diff(moment().startOf('day'), 'days');
+};
+
 const applyTasksFilters = (tasks: TaskWithLineage[], filters: TasksFilters = {}): TaskWithLineage[] => {
   let filtered = tasks;
 
   if (filters?.taskOverdue !== undefined) {
     filtered = filtered.filter(task => task.overdue === filters.taskOverdue);
+  }
+
+  if (filters.taskEndingSoonDays !== undefined) {
+    const maxDays = filters.taskEndingSoonDays;
+    filtered = filtered.filter(task => {
+      const daysLeft = getDaysUntilTaskEnd(task);
+      return daysLeft !== undefined && daysLeft >= 0 && daysLeft <= maxDays;
+    });
   }
 
   if (filters.taskTypes?.selected?.length) {

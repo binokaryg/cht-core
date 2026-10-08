@@ -15,10 +15,15 @@ import {
 } from '@angular/material/expansion';
 import { TranslatePipe } from '@ngx-translate/core';
 import { OverdueFilterComponent } from '@mm-components/filters/overdue-filter/overdue-filter.component';
+import { EndingSoonFilterComponent } from '@mm-components/filters/ending-soon-filter/ending-soon-filter.component';
 import { TaskTypeFilterComponent } from '@mm-components/filters/task-type-filter/task-type-filter.component';
 import { FacilityFilterComponent } from '@mm-components/filters/facility-filter/facility-filter.component';
 
-type FilterComponent = OverdueFilterComponent | TaskTypeFilterComponent | FacilityFilterComponent;
+type FilterComponent =
+  | OverdueFilterComponent
+  | EndingSoonFilterComponent
+  | TaskTypeFilterComponent
+  | FacilityFilterComponent;
 
 @Component({
   selector: 'mm-tasks-sidebar-filter',
@@ -34,6 +39,7 @@ type FilterComponent = OverdueFilterComponent | TaskTypeFilterComponent | Facili
     NgIf,
     TranslatePipe,
     OverdueFilterComponent,
+    EndingSoonFilterComponent,
     TaskTypeFilterComponent,
     FacilityFilterComponent,
   ]
@@ -44,6 +50,7 @@ export class TasksSidebarFilterComponent implements OnInit, AfterViewInit, OnDes
   @Input() disabled;
 
   @ViewChild(OverdueFilterComponent) overdueFilter!: OverdueFilterComponent;
+  @ViewChild(EndingSoonFilterComponent) endingSoonFilter!: EndingSoonFilterComponent;
   @ViewChild(TaskTypeFilterComponent) taskTypeFilter!: TaskTypeFilterComponent;
   @ViewChild(FacilityFilterComponent) facilityFilter!: FacilityFilterComponent;
 
@@ -83,6 +90,7 @@ export class TasksSidebarFilterComponent implements OnInit, AfterViewInit, OnDes
   private initFilters() {
     this.filters = [
       this.overdueFilter,
+      this.endingSoonFilter,
       this.taskTypeFilter,
       this.facilityFilter,
     ];

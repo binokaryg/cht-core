@@ -291,6 +291,7 @@ export interface SidebarFilterState {
 
 export interface TasksFilters {
   taskOverdue?: boolean;
+  taskEndingSoonDays?: number;
   taskTypes?: { selected: string[] };
   facilities?: { selected: string[] };
   search?: string;

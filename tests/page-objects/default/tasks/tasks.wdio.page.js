@@ -13,6 +13,8 @@ const sidebarFilterSelectors = {
   resetBtn: () => $('.sidebar-reset'),
   overdueAccordionHeader: () => $('#overdue-filter-accordion mat-expansion-panel-header'),
   overdueAccordionBody: () => $('#overdue-filter-accordion mat-panel-description'),
+  endingSoonAccordionHeader: () => $('#ending-soon-filter-accordion mat-expansion-panel-header'),
+  endingSoonAccordionBody: () => $('#ending-soon-filter-accordion mat-panel-description'),
   taskTypeAccordionHeader: () => $('#task-type-filter-accordion mat-expansion-panel-header'),
   taskTypeAccordionBody: () => $('#task-type-filter-accordion mat-panel-description'),
   placeAccordionHeader: () => $('#place-filter-accordion mat-expansion-panel-header'),
@@ -145,6 +147,17 @@ const filterByOverdue = async (overdueOption) => {
   await radio.click();
 };
 
+const filterByEndingSoon = async (endingSoonOption) => {
+  if (!await sidebarFilterSelectors.endingSoonAccordionBody().isDisplayed()) {
+    await sidebarFilterSelectors.endingSoonAccordionHeader().click();
+    await sidebarFilterSelectors.endingSoonAccordionBody().waitForDisplayed();
+  }
+
+  const option = sidebarFilterSelectors.endingSoonAccordionBody().$(`label*=${endingSoonOption}`);
+  const radio = await option.$('input[type="radio"]');
+  await radio.click();
+};
+
 const filterByTaskType = async (taskType) => {
   if (!await sidebarFilterSelectors.taskTypeAccordionBody().isDisplayed()) {
     await sidebarFilterSelectors.taskTypeAccordionHeader().click();
@@ -209,6 +222,7 @@ module.exports = {
   sidebarFilterSelectors,
   openSidebarFilter,
   filterByOverdue,
+  filterByEndingSoon,
   filterByTaskType,
   filterByPlace,
   resetFilters,

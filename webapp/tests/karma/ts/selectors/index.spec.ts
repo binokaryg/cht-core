@@ -1,5 +1,7 @@
 import { expect } from 'chai';
 import { cloneDeep } from 'lodash-es';
+import sinon from 'sinon';
+import * as moment from 'moment';
 
 import { Selectors } from '@mm-selectors/index';
 import { GlobalState, StorageStatus } from '@mm-reducers/global';
@@ -825,6 +827,100 @@ describe('Selectors', () => {
         const globalState = { filters: { search: 'alice', taskOverdue: true } } as any;
         const result = Selectors.getFilteredTasksList.projector(tasksState, globalState);
         expect(result).to.deep.equal([tasksState.tasksList[0]]);
+      });
+
+      describe('ending soon filter', () => {
+        let clock;
+        const DAY_FORMAT = 'YYYY-MM-DD';
+        const endingIn = (days) => moment().startOf('day').add(days, 'days').format(DAY_FORMAT);
+        const filterEndingSoon = (tasksList, taskEndingSoonDays, otherFilters = {}) => {
+          const globalState = { filters: { taskEndingSoonDays, ...otherFilters } } as any;
+          return Selectors.getFilteredTasksList.projector({ tasksList }, globalState);
+        };
+
+        beforeEach(() => {
+          // A fixed mid-afternoon local time so the dates below are deterministic.
+          clock = sinon.useFakeTimers({ now: moment('2026-10-07T15:00:00').valueOf(), toFake: ['Date'] });
+        });
+
+        afterEach(() => {
+          clock.restore();
+        });
+
+        const tasksList = () => [
+          { _id: 'yesterday', endDate: endingIn(-1), lineageIds: [] },
+          { _id: 'today', endDate: endingIn(0), lineageIds: [] },
+          { _id: 'in5', endDate: endingIn(5), lineageIds: [] },
+          { _id: 'in6', endDate: endingIn(6), lineageIds: [] },
+          { _id: 'in7', endDate: endingIn(7), lineageIds: [] },
+          { _id: 'in8', endDate: endingIn(8), lineageIds: [] },
+          { _id: 'missing', lineageIds: [] },
+          { _id: 'invalid', endDate: 'not-a-date', lineageIds: [] },
+          { _id: 'nan', endDate: NaN, lineageIds: [] },
+          { _id: 'legacy', date: endingIn(2), readyEnd: 3, lineageIds: [] },
+        ];
+
+        it('should not filter when taskEndingSoonDays is not set', () => {
+          const tasks = tasksList();
+          expect(filterEndingSoon(tasks, undefined)).to.deep.equal(tasks);
+        });
+
+        it('should keep tasks whose last day is today or within 5 days', () => {
+          const result = filterEndingSoon(tasksList(), 5);
+          expect(result.map(task => task._id)).to.deep.equal(['today', 'in5']);
+        });
+
+        it('should keep tasks whose last day is today or within 7 days', () => {
+          const result = filterEndingSoon(tasksList(), 7);
+          expect(result.map(task => task._id)).to.deep.equal(['today', 'in5', 'in6', 'in7']);
+        });
+
+        it('should never match tasks without a valid endDate, even legacy date/readyEnd docs', () => {
+          const result = filterEndingSoon(tasksList(), 365);
+          expect(result.map(task => task._id)).to.not.include.members(['missing', 'invalid', 'nan', 'legacy']);
+        });
+
+        it('should exclude tasks whose window already ended', () => {
+          const result = filterEndingSoon(tasksList(), 7);
+          expect(result.map(task => task._id)).to.not.include('yesterday');
+        });
+
+        it('should compare whole local calendar days regardless of the time of day', () => {
+          const tasks = [{ _id: 'in5', endDate: endingIn(5), lineageIds: [] }];
+          clock.setSystemTime(moment('2026-10-07T00:00:01').valueOf());
+          expect(filterEndingSoon(tasks, 5).map(task => task._id)).to.deep.equal(['in5']);
+          clock.setSystemTime(moment('2026-10-07T23:59:59').valueOf());
+          expect(filterEndingSoon(tasks, 5).map(task => task._id)).to.deep.equal(['in5']);
+        });
+
+        it('should combine with the overdue and task type filters', () => {
+          const tasks = [
+            { _id: 'a', overdue: true, title: 'Home Visit', endDate: endingIn(3), lineageIds: [] },
+            { _id: 'b', overdue: false, title: 'Home Visit', endDate: endingIn(3), lineageIds: [] },
+            { _id: 'c', overdue: true, title: 'Assessment', endDate: endingIn(3), lineageIds: [] },
+            { _id: 'd', overdue: true, title: 'Home Visit', endDate: endingIn(9), lineageIds: [] },
+          ];
+          const result = filterEndingSoon(tasks, 5, { taskOverdue: true, taskTypes: { selected: ['Home Visit'] } });
+          expect(result.map(task => task._id)).to.deep.equal(['a']);
+        });
+
+        it('should change its result across midnight without the task docs being recalculated', () => {
+          // The same stored task docs, untouched; only the clock moves.
+          const tasks = [
+            { _id: 'in5', endDate: endingIn(5), lineageIds: [] },
+            { _id: 'in6', endDate: endingIn(6), lineageIds: [] },
+            { _id: 'today', endDate: endingIn(0), lineageIds: [] },
+          ];
+          const before = JSON.stringify(tasks);
+
+          clock.setSystemTime(moment('2026-10-07T23:59:00').valueOf());
+          expect(filterEndingSoon(tasks, 5).map(task => task._id)).to.deep.equal(['in5', 'today']);
+
+          clock.tick(2 * 60 * 1000); // 00:01 the next day
+          expect(filterEndingSoon(tasks, 5).map(task => task._id)).to.deep.equal(['in5', 'in6']);
+
+          expect(JSON.stringify(tasks)).to.equal(before);
+        });
       });
     });
   });

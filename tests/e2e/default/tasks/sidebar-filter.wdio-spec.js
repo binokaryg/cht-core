@@ -180,6 +180,71 @@ describe('Tasks Sidebar Filter', () => {
       });
     });
 
+    describe('Ending soon filter', () => {
+      // Every task in tasks-filter-config.js has `end: 10`, so its last visible day is dueDate + 10 days:
+      // home_visit_overdue ends in 5 days, assessment_overdue in 7, follow_up_overdue in 8,
+      // home_visit_not_overdue in 15 and assessment_not_overdue in 17.
+      it('should filter to show only tasks ending within 5 days', async () => {
+        await checkTasks();
+
+        await tasksPage.openSidebarFilter();
+        await tasksPage.filterByEndingSoon('Within 5 days');
+        await commonPage.waitForPageLoaded();
+
+        const filteredTasks = await tasksPage.getTasks();
+        const filteredInfos = await tasksPage.getTasksListInfos(filteredTasks);
+
+        expect(filteredInfos.length).to.equal(5);
+        filteredInfos.forEach(info => {
+          expect(info.formTitle).to.equal('Home Visit');
+          expect(info.overdue).to.be.true;
+        });
+
+        await tasksPage.resetFilters();
+        await checkTasks();
+      });
+
+      it('should filter to show only tasks ending within 7 days', async () => {
+        await checkTasks();
+
+        await tasksPage.openSidebarFilter();
+        await tasksPage.filterByEndingSoon('Within 7 days');
+        await commonPage.waitForPageLoaded();
+
+        const filteredTasks = await tasksPage.getTasks();
+        const filteredInfos = await tasksPage.getTasksListInfos(filteredTasks);
+
+        expect(filteredInfos.length).to.equal(10);
+        filteredInfos.forEach(info => {
+          expect(['Home Visit', 'Assessment']).to.include(info.formTitle);
+          expect(info.overdue).to.be.true;
+        });
+
+        await tasksPage.resetFilters();
+        await checkTasks();
+      });
+
+      it('should combine ending soon with the task type filter', async () => {
+        await checkTasks();
+
+        await tasksPage.openSidebarFilter();
+        await tasksPage.filterByEndingSoon('Within 7 days');
+        await tasksPage.filterByTaskType('Assessment');
+        await commonPage.waitForPageLoaded();
+
+        const filteredTasks = await tasksPage.getTasks();
+        const filteredInfos = await tasksPage.getTasksListInfos(filteredTasks);
+
+        expect(filteredInfos.length).to.equal(5);
+        filteredInfos.forEach(info => {
+          expect(info.formTitle).to.equal('Assessment');
+        });
+
+        await tasksPage.resetFilters();
+        await checkTasks();
+      });
+    });
+
     describe('Task type filter', () => {
       it('should filter by Home Visit task type', async () => {
         await checkTasks();
